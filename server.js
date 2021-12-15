@@ -80,7 +80,58 @@ app.post("/api/users/:_id/exercises", (req,res)=>{
   })
 });
 
+app.get("/api/users/:_id/logs", (req,res)=>{
+  const {from, to, limit} = req.query;
+  const id = req.params._id;
+  console.log(id);
+  User.findById(id, (err,userData)=>{
+    if(err || !userData){
+      res.send("user not found");
+      // console.log(err);
+      // console.log(userData);
+    }else{
+      let dateObj = {}
+      if(from)
+        dateObj["$gte"] = new Date(from);
+      if(to)
+        dateObj["$lte"] = new Date(to);
+      
+      let filter = {
+        userId: id
+      }
 
+      if (from || to)
+        filter.date = dateObj;
+      let notNullLimit = limit ?? 500;
+      Exercise.find(filter).limit(notNullLimit).exec((err,data)=>{
+        if(err || !data)
+          res.json([]);
+        else{
+          const count = data.length;
+          const rawLog = data;
+          const {username, _id} = userData;
+          const log = rawLog.map(l => ({
+            "description": l.description,
+            "duration": l.duration,
+            "date": l.date.toDateString()
+          }));
+          res.json({"username": username, "count": count, "_id": id, "log": log});
+        }
+      });
+    }
+  
+
+});
+});
+
+app.get("/api/users", (req,res)=>{
+  User.find({}, (err,data)=>{
+    if(err || !data)
+      res.json([]);
+    else
+      res.json(data);
+  });
+});
 
 
 const listener = app.listen(process.env.PORT || 3000, () => {
