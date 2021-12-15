@@ -12,7 +12,7 @@ mongoose.connect(process.env.MONGO_URI, {
 });
 
 const exerciseSchema = mongoose.Schema({
-  username: {type: String, required: true},
+  userId: {type: String, required: true},
   description: String,
   duration: Number,
   date: Date,
@@ -49,6 +49,36 @@ app.post("/api/users", (req,res)=>{
 
 });
 
+app.post("/api/users/:_id/exercises", (req,res)=>{
+  const id = req.params._id;
+  const {description, duration, date} = req.body;
+  User.findById(id, (err,userData)=>{
+    if(err || !userData){
+      res.send("user not found");
+    }else{
+      const newExercise = new Exercise({
+        userId: id,
+        description,
+        duration,
+        date: new Date(date)
+      });
+      newExercise.save((err, data)=>{
+        if(err||!data){
+          res.send("There was some problem in saving this exercise");
+        }else{
+          const {description, duration, date, _id} = data;
+          res.json({
+            username: userData.username,
+            description,
+            duration,
+            date: date.toDateString(),
+            _id: userData.id
+          });
+        }
+      });
+    }
+  })
+});
 
 
 
