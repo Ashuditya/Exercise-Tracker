@@ -111,11 +111,14 @@ app.get("/api/users/:_id/logs", (req,res)=>{
           const rawLog = data;
           const {username, _id} = userData;
           const log = rawLog.map(l => ({
-            "description": l.description,
-            "duration": l.duration,
-            "date": l.date.toDateString()
+            description: l.description,
+            duration: l.duration,
+            date: l.date.toDateString()
           }));
-          res.json({"username": username, "count": count, "_id": id, "log": log});
+          let user = {username: username, count: count, _id: id, log: log};
+          // let user = {_id: id, username: username, count: count, log: log};
+          res.json(user);
+          return user;
         }
       });
     }
