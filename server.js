@@ -5,6 +5,8 @@ const bodyParser = require('body-parser');
 require('dotenv').config();
 
 const mongoose = require('mongoose');
+const { LongWithoutOverridesClass } = require('bson');
+const e = require('express');
 // const {response} = require('express');
 mongoose.connect(process.env.MONGO_URI, {
   useUnifiedTopology: true,
@@ -25,6 +27,31 @@ const userSchema = mongoose.Schema({
 });
 const User = mongoose.model("User", userSchema);
 
+function getUsernameById(id){
+  console.log("inside heree bitch");
+  User.findById(id, (err,data)=>{
+    console.log("more");
+    if(err || !data){
+      return undefined;
+    }else{
+      return data.username;
+    }
+  });
+}
+const getExerciseFromUserWithId = (id) => Exercise.findById(id, (err,data)=>{
+  if(err || !data){
+    return {};
+  }else{
+    // const rawLog = data;
+    const log = data.map(l => ({
+      description: l.description,
+      duration: l.duration,
+      date: l.date.toDateString()
+    }));
+    return log;
+  }
+});
+
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 app.use(cors());
@@ -33,7 +60,7 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
 
-app.post("/api/users", (req,res)=>{
+app.post("/api/users", (req,res)=>{ 
   console.log("req.body", req.body);
   var username = req.body.username;
   console.log(username);
@@ -53,6 +80,7 @@ app.post("/api/users/:_id/exercises", (req,res)=>{
   const id = req.params._id;
   const {description, duration, date} = req.body;
   User.findById(id, (err,userData)=>{
+    console.log("heyyyy");
     if(err || !userData){
       res.send("user not found");
     }else{
@@ -75,56 +103,58 @@ app.post("/api/users/:_id/exercises", (req,res)=>{
             _id: userData.id
           });
         }
+        
       });
     }
   })
 });
 
 app.get("/api/users/:_id/logs", (req,res)=>{
+  const userId = req.params._id;
   const {from, to, limit} = req.query;
-  const id = req.params._id;
-  console.log(id);
-  User.findById(id, (err,userData)=>{
+  var uName = undefined;
+  var log = [];
+  User.findById(userId, (err, userData)=>{
     if(err || !userData){
-      res.send("user not found");
-      // console.log(err);
-      // console.log(userData);
+      res.json("user not found");
     }else{
-      let dateObj = {}
-      if(from)
-        dateObj["$gte"] = new Date(from);
-      if(to)
-        dateObj["$lte"] = new Date(to);
-      
-      let filter = {
-        userId: id
-      }
-
-      if (from || to)
-        filter.date = dateObj;
-      let notNullLimit = limit ?? 500;
-      Exercise.find(filter).limit(notNullLimit).exec((err,data)=>{
-        if(err || !data)
-          res.json([]);
-        else{
-          const count = data.length;
-          const rawLog = data;
-          const {username, _id} = userData;
-          const log = rawLog.map(l => ({
+      uName = userData.username;
+      console.log(uName);
+      Exercise.find({userId: userId}, (err, data)=>{
+        if (err || !data){
+          console.log(err,data);
+          res.json("exercise not found");
+        }else{
+          log = data.map(l => ({
             description: l.description,
             duration: l.duration,
             date: l.date.toDateString()
           }));
-          let user = {username: username, count: count, _id: id, log: log};
-          // let user = {_id: id, username: username, count: count, log: log};
-          res.json(user);
-          return user;
+          // return log;
+          if (from){
+            const fromDate = new Date(from);
+            log = log.filter(exe => new Date(exe.date)>fromDate);
+          }
+          if (to){
+            const fromDate = new Date(to);
+            log = log.filter(exe => new Date(exe.date)<fromDate);
+          }
+          if(limit){
+            log = log.slice(0, +limit);
+          }
+        
+          res.json({
+            _id: userId,
+            username: uName,
+            count: log.length,
+            log
+          });
         }
-      });
+      })
     }
+  })
+ 
   
-
-});
 });
 
 app.get("/api/users", (req,res)=>{
